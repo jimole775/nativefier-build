@@ -179,7 +179,7 @@ for (let i = 0; i < envs.length; i++) {
         '--icon', '/assets/logo.ico',
         '--inject', '/inject/zoom.js',
         '--electron-version', '19.1.4',
-        '--app-copyright', 'xxx公司',
+        '--app-copyright', '百度有限公司',
         '--disable-dev-tools',
         '--clear-cache',
         '--always-on-top',
@@ -272,6 +272,77 @@ for (let i = 0; i < envs.length; i++) {
   }
 };
 
+// 检查并安装指定版本的 nativefier
+const checkAndInstallNativefier = async () => {
+  console.log('检查 nativefier 版本...');
+  
+  // 检查 nativefier 是否安装以及版本
+  const checkVersion = () => {
+    return new Promise((resolve) => {
+      const nativefierVersion = spawn('nativefier', ['--version'], {
+        shell: true,
+        stdio: 'pipe'
+      });
+      
+      let version = '';
+      
+      nativefierVersion.stdout.on('data', (data) => {
+        version += data.toString().trim();
+      });
+      
+      nativefierVersion.on('close', (code) => {
+        if (code === 0) {
+          resolve(version);
+        } else {
+          resolve('');
+        }
+      });
+    });
+  };
+  
+  const currentVersion = await checkVersion();
+  console.log(`当前 nativefier 版本：${currentVersion || '未安装'}`);
+  
+  // 检查是否需要安装或升级
+  if (!currentVersion || !currentVersion.startsWith('v48')) {
+    console.log('需要安装 nativefier@48...');
+    
+    // 全局安装 nativefier@48
+    const installNativefier = spawn('npm', ['install', '-g', 'nativefier@48'], {
+      shell: true,
+      stdio: 'inherit'
+    });
+    
+    await new Promise((resolve, reject) => {
+      installNativefier.on('close', (code) => {
+        if (code === 0) {
+          console.log('✅ nativefier@48 安装成功！');
+          resolve(true);
+        } else {
+          console.error('❌ nativefier@48 安装失败！');
+          reject(new Error('nativefier 安装失败'));
+        }
+      });
+      
+      installNativefier.on('error', (err) => {
+        console.error('❌ nativefier 安装命令执行错误：', err);
+        reject(err);
+      });
+    });
+  } else {
+    console.log('✅ nativefier@48 版本符合要求！');
+  }
+};
+
 // 开始执行
 console.log('准备开始构建...');
-saveOriginalVersionAndUse16();
+
+// 先检查并安装 nativefier，再执行构建流程
+checkAndInstallNativefier()
+  .then(() => {
+    saveOriginalVersionAndUse16();
+  })
+  .catch((err) => {
+    console.error('构建流程启动失败：', err);
+    process.exit(1);
+  });
